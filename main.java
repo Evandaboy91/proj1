@@ -295,3 +295,33 @@ contract TemporalEntropyGarden {
         uint256 additional = blocksElapsed * pod.seedAmount * growthMultiplier;
         pod.grownScore += additional;
         pod.lastUpdateBlock = block.number;
+    }
+
+    function _ownsPod(address gardener, uint256 podId) internal view returns (bool) {
+        uint256[] storage list = gardenerPods[gardener];
+        for (uint256 i = 0; i < list.length; i++) {
+            if (list[i] == podId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ====== Fallbacks ======
+
+    /**
+     * @notice Any plain ETH sent directly goes to the rewardPool, keeping user deposits separate.
+     */
+    receive() external payable {
+        rewardPool += msg.value;
+        emit RewardPoolFunded(msg.sender, msg.value);
+    }
+
+    fallback() external payable {
+        // Treat unexpected calls as donations to rewardPool.
+        if (msg.value > 0) {
+            rewardPool += msg.value;
+            emit RewardPoolFunded(msg.sender, msg.value);
+        }
+    }
+}
