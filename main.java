@@ -64,3 +64,36 @@ contract TemporalEntropyGarden {
     uint256 public rewardPool;
 
     // Gardener => list of their podIds
+    mapping(address => uint256[]) private gardenerPods;
+
+    // podId => GrowthPod
+    mapping(uint256 => GrowthPod) private pods;
+
+    // Tracks last shake block per address to throttle reward attempts
+    mapping(address => uint256) public lastShakeBlock;
+
+    // ====== Modifiers ======
+
+    modifier onlyOverseer() {
+        require(msg.sender == gardenOverseer, "Not garden overseer");
+        _;
+    }
+
+    // ====== Constructor ======
+
+    constructor() {
+        gardenOverseer = msg.sender;
+
+        // Initialize with arbitrary, unusual-looking defaults
+        growthMultiplier = 13_337;        // playful default
+        minimumBlocksForReward = 77;      // must wait at least 77 blocks between shakes
+        maxRewardBasisPoints = 777;       // up to 7.77% of rewardPool per shake
+    }
+
+    // ====== Public and External Functions ======
+
+    /**
+     * @notice Create a new growth pod with an initial deposit.
+     * Each call creates a new pod id; a gardener can have many pods.
+     */
+    function plantNewPod() external payable returns (uint256 podId) {
