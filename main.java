@@ -130,3 +130,36 @@ contract TemporalEntropyGarden {
         _updateGrowthScore(pod);
 
         pod.seedAmount += msg.value;
+
+        emit PodWatered(msg.sender, podId, msg.value);
+    }
+
+    /**
+     * @notice Harvest a pod: returns ALL deposited seed plus leaves the growthScore
+     * recorded for viewing. The pod is then "locked" from further deposits.
+     *
+     * For simplicity, this implementation allows harvest only once; funds are sent to the caller.
+     */
+    function harvestPod(uint256 podId) external {
+        GrowthPod storage pod = pods[podId];
+        require(pod.exists, "Pod does not exist");
+        require(_ownsPod(msg.sender, podId), "Not your pod");
+        require(pod.seedAmount > 0, "Already harvested");
+
+        _updateGrowthScore(pod);
+
+        uint256 amountToReturn = pod.seedAmount;
+        uint256 score = pod.grownScore;
+
+        // Zero out seedAmount to prevent re-harvest
+        pod.seedAmount = 0;
+
+        (bool sent, ) = msg.sender.call{value: amountToReturn}("");
+        require(sent, "ETH transfer failed");
+
+        emit PodHarvested(msg.sender, podId, amountToReturn, score);
+    }
+
+    /**
+     * @notice Fund the reward pool. Anyone can do this; this ETH will be used
+     * to pay out pseudo-random rewards when people "shake the garden".
