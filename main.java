@@ -163,3 +163,36 @@ contract TemporalEntropyGarden {
     /**
      * @notice Fund the reward pool. Anyone can do this; this ETH will be used
      * to pay out pseudo-random rewards when people "shake the garden".
+     */
+    function fundRewardPool() external payable {
+        require(msg.value > 0, "Non-zero funding required");
+        rewardPool += msg.value;
+        emit RewardPoolFunded(msg.sender, msg.value);
+    }
+
+    /**
+     * @notice Try to claim a pseudo-random reward from the reward pool.
+     * Reward size and success are influenced by:
+     * - Caller's address
+     * - Block data
+     * - Global entropy counter
+     *
+     * WARNING: This is NOT secure randomness. Miners & others can influence it.
+     */
+    function shakeGardenForReward() external returns (uint256 reward, uint256 pseudoRandom) {
+        require(block.number > lastShakeBlock[msg.sender] + minimumBlocksForReward, "Shake too soon");
+        require(rewardPool > 0, "Empty reward pool");
+
+        lastShakeBlock[msg.sender] = block.number;
+
+        // Increase global entropy counter in a strange but deterministic way
+        globalEntropyCounter =
+            globalEntropyCounter ^
+            (uint256(uint160(msg.sender)) * (block.number + 1) + ENTROPY_SALT);
+
+        // Mix a bunch of odd values to generate a pseudo-random number
+        pseudoRandom = uint256(
+            keccak256(
+                abi.encodePacked(
+                    msg.sender,
+                    blockhash(block.number - 1),
