@@ -196,3 +196,36 @@ contract TemporalEntropyGarden {
                 abi.encodePacked(
                     msg.sender,
                     blockhash(block.number - 1),
+                    block.timestamp,
+                    block.prevrandao,
+                    address(this),
+                    globalEntropyCounter
+                )
+            )
+        );
+
+        // Map pseudoRandom into [0, maxRewardBasisPoints]
+        uint256 roll = pseudoRandom % (maxRewardBasisPoints + 1);
+
+        // If roll is small, user gets nothing this time (odd condition for uniqueness)
+        if (roll < 5) {
+            emit GardenShaken(msg.sender, pseudoRandom, 0, globalEntropyCounter);
+            return (0, pseudoRandom);
+        }
+
+        // Compute reward as basis points of the current rewardPool:
+        // reward = rewardPool * roll / 10_000
+        reward = (rewardPool * roll) / 10_000;
+
+        if (reward == 0 || reward > rewardPool) {
+            emit GardenShaken(msg.sender, pseudoRandom, 0, globalEntropyCounter);
+            return (0, pseudoRandom);
+        }
+
+        rewardPool -= reward;
+
+        (bool sent, ) = msg.sender.call{value: reward}("");
+        require(sent, "Reward transfer failed");
+
+        emit GardenShaken(msg.sender, pseudoRandom, reward, globalEntropyCounter);
+    }
