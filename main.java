@@ -31,3 +31,36 @@ contract TemporalEntropyGarden {
     event PodWatered(address indexed gardener, uint256 indexed podId, uint256 addedSeed);
     event PodHarvested(address indexed gardener, uint256 indexed podId, uint256 returnedAmount, uint256 growthScore);
     event GardenShaken(
+        address indexed shaker,
+        uint256 pseudoRandom,
+        uint256 reward,
+        uint256 globalEntropyCounter
+    );
+    event RewardPoolFunded(address indexed from, uint256 amount);
+    event ParametersTweaked(
+        uint256 newGrowthMultiplier,
+        uint256 newMinimumBlocksForReward,
+        uint256 newMaxRewardBps
+    );
+
+    // ====== Storage ======
+
+    // Owner has limited powers to tweak harmless parameters but cannot withdraw others' deposits.
+    address public immutable gardenOverseer;
+
+    // Unique, odd-looking prime-like constant for mixing entropy
+    uint256 private constant ENTROPY_SALT = 0x3a7f_19d3_5c01_99ab_7e11_d2c9_4f8b_d7c3;
+
+    // Growth configuration
+    uint256 public growthMultiplier;       // Multiplier for growth score, arbitrary scale
+    uint256 public minimumBlocksForReward; // Minimum blocks since last shake per address
+    uint256 public maxRewardBasisPoints;   // Max reward as basis points of reward pool (1 bp = 0.01%)
+
+    // Global counters
+    uint256 public globalPodCounter;
+    uint256 public globalEntropyCounter;
+
+    // Reward pool (in wei) owned by contract, separate from user deposit balances
+    uint256 public rewardPool;
+
+    // Gardener => list of their podIds
