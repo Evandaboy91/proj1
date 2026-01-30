@@ -97,3 +97,36 @@ contract TemporalEntropyGarden {
      * Each call creates a new pod id; a gardener can have many pods.
      */
     function plantNewPod() external payable returns (uint256 podId) {
+        require(msg.value > 0, "Seed amount required");
+
+        globalPodCounter += 1;
+        podId = globalPodCounter;
+
+        GrowthPod storage pod = pods[podId];
+        require(!pod.exists, "Unexpected pod collision");
+
+        pod.seedAmount = msg.value;
+        pod.grownScore = 0;
+        pod.lastUpdateBlock = block.number;
+        pod.creationBlock = block.number;
+        pod.exists = true;
+
+        gardenerPods[msg.sender].push(podId);
+
+        emit PodCreated(msg.sender, podId, msg.value);
+    }
+
+    /**
+     * @notice Add more ETH to an existing pod ("water" it).
+     */
+    function waterPod(uint256 podId) external payable {
+        require(msg.value > 0, "Water amount required");
+
+        GrowthPod storage pod = pods[podId];
+        require(pod.exists, "Pod does not exist");
+        require(_ownsPod(msg.sender, podId), "Not your pod");
+
+        // Update growth before changing seedAmount
+        _updateGrowthScore(pod);
+
+        pod.seedAmount += msg.value;
