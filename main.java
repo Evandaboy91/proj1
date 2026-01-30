@@ -229,3 +229,36 @@ contract TemporalEntropyGarden {
 
         emit GardenShaken(msg.sender, pseudoRandom, reward, globalEntropyCounter);
     }
+
+    // ====== View Functions ======
+
+    function getPodsOf(address gardener) external view returns (uint256[] memory) {
+        return gardenerPods[gardener];
+    }
+
+    function getPod(uint256 podId) external view returns (GrowthPod memory) {
+        return pods[podId];
+    }
+
+    /**
+     * @notice Preview what the growthScore for a pod would be if updated at this block.
+     */
+    function previewGrowthScore(uint256 podId) external view returns (uint256) {
+        GrowthPod storage pod = pods[podId];
+        if (!pod.exists) {
+            return 0;
+        }
+        if (pod.seedAmount == 0) {
+            return pod.grownScore;
+        }
+
+        uint256 blocksElapsed = block.number - pod.lastUpdateBlock;
+        uint256 additional = blocksElapsed * pod.seedAmount * growthMultiplier;
+        return pod.grownScore + additional;
+    }
+
+    // ====== Overseer-Only (Limited) Controls ======
+
+    /**
+     * @notice Overseer can tweak parameters to change feel of the system.
+     * Cannot steal funds or modify user balances.
