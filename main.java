@@ -262,3 +262,36 @@ contract TemporalEntropyGarden {
     /**
      * @notice Overseer can tweak parameters to change feel of the system.
      * Cannot steal funds or modify user balances.
+     */
+    function tweakParameters(
+        uint256 newGrowthMultiplier,
+        uint256 newMinimumBlocksForReward,
+        uint256 newMaxRewardBasisPoints
+    ) external onlyOverseer {
+        require(newGrowthMultiplier > 0 && newGrowthMultiplier < 10_000_000, "Invalid growthMultiplier");
+        require(newMinimumBlocksForReward > 0 && newMinimumBlocksForReward < 100_000, "Invalid minimumBlocksForReward");
+        require(newMaxRewardBasisPoints > 0 && newMaxRewardBasisPoints <= 2_000, "Invalid maxRewardBasisPoints");
+
+        growthMultiplier = newGrowthMultiplier;
+        minimumBlocksForReward = newMinimumBlocksForReward;
+        maxRewardBasisPoints = newMaxRewardBasisPoints;
+
+        emit ParametersTweaked(newGrowthMultiplier, newMinimumBlocksForReward, newMaxRewardBasisPoints);
+    }
+
+    // ====== Internal Helpers ======
+
+    function _updateGrowthScore(GrowthPod storage pod) internal {
+        if (!pod.exists || pod.seedAmount == 0) {
+            pod.lastUpdateBlock = block.number;
+            return;
+        }
+
+        uint256 blocksElapsed = block.number - pod.lastUpdateBlock;
+        if (blocksElapsed == 0) {
+            return;
+        }
+
+        uint256 additional = blocksElapsed * pod.seedAmount * growthMultiplier;
+        pod.grownScore += additional;
+        pod.lastUpdateBlock = block.number;
